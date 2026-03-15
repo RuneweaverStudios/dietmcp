@@ -1,0 +1,26 @@
+{
+  "text_response": {
+    "content": [
+      {"type": "text", "text": "Hello, world! This is the content of the file."}
+    ],
+    "isError": false
+  },
+  "error_response": {
+    "content": [
+      {"type": "text", "text": "FileNotFoundError: /tmp/nonexistent.txt"}
+    ],
+    "isError": true
+  },
+  "large_response": {
+    "content": [
+      {"type": "text", "text": "x]PLACEHOLDER_LARGE_CONTENT[x"}
+    ],
+    "isError": false
+  },
+  "tabular_response": {
+    "content": [
+      {"type": "text", "text": "[{\"name\": \"README.md\", \"size\": 2847, \"modified\": \"2026-03-14\"}, {\"name\": \"src/main.py\", \"size\": 1203, \"modified\": \"2026-03-15\"}, {\"name\": \"tests/test_main.py\", \"size\": 890, \"modified\": \"2026-03-15\"}]"}
+    ],
+    "isError": false
+  }
+}
