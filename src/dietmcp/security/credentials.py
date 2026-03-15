@@ -71,9 +71,15 @@ def collect_env(dotenv_paths: list[Path] | None = None) -> dict[str, str]:
     """Build a combined env dict from .env files and os.environ.
 
     .env values override os.environ for interpolation purposes.
+    Also injects loaded values into os.environ so child processes
+    (MCP servers spawned via stdio) inherit them automatically.
     """
     paths = dotenv_paths or []
     dotenv_vars = load_env_files(*paths)
+    # Inject into os.environ so transport/connection.py child processes
+    # get these values when building their environment via dict(os.environ).
+    for k, v in dotenv_vars.items():
+        os.environ.setdefault(k, v)
     combined = dict(os.environ)
     combined.update(dotenv_vars)
     return combined

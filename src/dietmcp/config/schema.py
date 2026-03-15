@@ -26,6 +26,7 @@ class ConfigDefaults(BaseModel):
     cache_ttl_seconds: int = 3600
     output_format: str = "summary"
     max_response_size: int = 50_000
+    env_file: str | None = None
 
 
 class DietMcpConfig(BaseModel):

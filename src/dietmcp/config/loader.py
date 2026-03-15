@@ -5,7 +5,7 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-from dietmcp.config.defaults import CONFIG_DIR, CONFIG_FILE, DEFAULT_CACHE_TTL
+from dietmcp.config.defaults import CONFIG_DIR, CONFIG_FILE, DEFAULT_CACHE_TTL, ENV_SEARCH_PATHS
 from dietmcp.config.schema import DietMcpConfig, ServerEntry
 from dietmcp.models.server import ServerConfig
 from dietmcp.security.credentials import collect_env, resolve_template
@@ -53,11 +53,23 @@ def resolve_server(
     """Resolve a ServerEntry into a fully-interpolated ServerConfig.
 
     Replaces ${VAR} placeholders in env values, headers, and url fields.
+
+    .env search order (later wins):
+    1. os.environ (shell env)
+    2. Global config dir .env (~/.config/dietmcp/.env or platform equivalent)
+    3. Project root .env (where dietmcp package lives)
+    4. CWD .env (current working directory)
+    5. Custom env_file from config defaults
     """
-    dotenv_paths = [
-        Path.cwd() / ".env",
-        CONFIG_DIR / ".env",
-    ]
+    dotenv_paths = list(ENV_SEARCH_PATHS)
+    # CWD .env (may differ from project root)
+    cwd_env = Path.cwd() / ".env"
+    if cwd_env not in dotenv_paths:
+        dotenv_paths.append(cwd_env)
+    # Custom env_file from config
+    if global_defaults and global_defaults.defaults.env_file:
+        custom = Path(global_defaults.defaults.env_file).expanduser()
+        dotenv_paths.append(custom)
     env = collect_env(dotenv_paths)
 
     resolved_env = {}
@@ -126,7 +138,7 @@ def create_default_config(path: Path | None = None) -> Path:
             "github": {
                 "command": "npx",
                 "args": ["-y", "@modelcontextprotocol/server-github"],
-                "env": {"GITHUB_TOKEN": "${GITHUB_TOKEN}"},
+                "env": {"GITHUB_PERSONAL_ACCESS_TOKEN": "${GITHUB_PERSONAL_ACCESS_TOKEN}"},
             },
         },
         "defaults": {
