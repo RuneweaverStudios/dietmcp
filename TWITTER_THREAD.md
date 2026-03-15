@@ -1,62 +1,50 @@
-I Built a Tool That Lets AI Agents Use 78 MCP Tools Without Blowing Up Their Context Window
+How I Got 78 MCP Tools Into One Agent Without Everything Falling Apart
 
-I just solved one of the biggest problems with AI agents using tools. 78 MCP tools. 4 servers. Zero context window bloat. Here's how I built dietmcp — and why it changes everything about agent tooling.
+So I've been deep in the MCP rabbit hole for a while now. Building agents, wiring up servers, the whole thing. And I kept running into this wall that honestly drove me a little crazy before I figured out what was happening.
 
+Every time I added a new MCP server, my agent got worse. Not a little worse. Noticeably, measurably worse. More hallucinations. Slower responses. It started making up tool names that didn't exist. I'm sitting there thinking "I just gave you MORE capabilities, why are you dumber now?"
 
-The Dirty Secret of MCP
-
-Here's something nobody talks about with the Model Context Protocol: every tool you add dumps its FULL JSON schema into the agent's prompt. Not just the name. The entire schema — types, descriptions, nested objects, enums, all of it.
-
-10 tools? That's 2,000-5,000 wasted tokens. Per turn. Even when the agent doesn't use a single one of them.
-
-Now scale that up. Connect 4 servers — Supabase, GitHub, Puppeteer, something like Context7 — and you're looking at 25,000 tokens of raw JSON sitting in the prompt before the agent even starts thinking.
-
-The consequences are brutal:
-
-Context window exhaustion. Less room for actual conversation and reasoning. Your 200K window suddenly feels like 175K.
-
-Higher hallucination rates. Overcrowded prompts cause agents to fumble tool calls. They start inventing parameter names. They call tools that don't exist.
-
-Slower, more expensive responses. More input tokens means higher latency and higher cost. Every single turn.
-
-A hard ceiling around 20 tools. Beyond that, quality degrades fast. The agent drowns in its own tool definitions.
-
-If you've built anything with MCP tools and hit that wall — this is why.
+Turns out, the answer was staring me in the face the whole time.
 
 
-The Key Insight
+The thing nobody warns you about
 
-I kept staring at this problem and the answer was embarrassingly simple:
+When you connect an MCP server to an agent, every single tool on that server gets its full JSON schema injected into the prompt. The name, the description, every parameter, every type annotation, every nested object. All of it. Every turn. Whether the agent uses the tool or not.
 
-Agents already know how to use bash.
+I did the math one afternoon and almost spit out my coffee. My filesystem server alone — six tools — was eating over 2,000 tokens of context. Just sitting there. Doing nothing. My GitHub server was closer to 3,000. Supabase? Over 4,000.
 
-So what if we stopped loading MCP tool schemas into the prompt entirely, and instead converted every MCP tool into a bash command?
+I had four servers connected. That's roughly 10,000 tokens of JSON schema clogging up the prompt on every single turn. Before my agent even started thinking about the actual task, a quarter of its working memory was already occupied by tool definitions it probably wasn't going to touch.
 
-The agent doesn't need 2,000 tokens of JSON schema to call read_file. It needs one line:
+No wonder it was getting confused. The poor thing was trying to reason through a wall of JSON.
+
+
+The moment it clicked
+
+I was debugging a particularly bad hallucination — the agent kept calling a tool called "query_database" that didn't exist on any of my servers — and I noticed something. When I asked the same agent to do something with bash, it was flawless. curl commands, grep pipelines, file manipulation. Perfect every time.
+
+And that's when it hit me. The agent already knows bash. It's really, really good at bash. So why am I cramming thousands of tokens of JSON schema into its context when I could just... give it a bash command to run?
+
+What if every MCP tool was just a CLI call?
+
+Instead of the agent needing to understand the full schema for read_file — the type definitions, the property descriptions, the required fields — it just needs to know:
 
     dietmcp exec filesystem read_file --args '{"path": "/tmp/file.txt"}'
 
-That's it. The agent calls it through its shell tool. The response comes back through stdout. No schema in context. No protocol overhead. Just a bash command.
+One line. That's it. The agent already knows how to construct a command like that. I don't need to teach it anything.
 
 
-What I Built
+Building the thing
 
-So I built dietmcp. It's a Python CLI that acts as a bridge between LLM agents and MCP servers. It does three things:
+I spent about a week putting together dietmcp. It's a Python CLI that sits between the agent and whatever MCP servers you have. The idea is pretty straightforward — instead of loading all the tool schemas into the prompt, you give the agent a short cheat sheet and let it call tools through the command line.
 
-1. DISCOVERS tools from any MCP server at runtime — connects, fetches schemas, caches them.
-2. COMPRESSES those schemas into "skill summaries" that are roughly 10x smaller than the raw JSON.
-3. PIPES large outputs to files so they never flood the agent's context window.
-
-The agent sees a 200-token cheat sheet instead of 2,000 tokens of JSON.
-
-Here's what the compression looks like in practice.
-
-Before (what sits in the agent's context with native MCP):
+The cheat sheet is what I call a "skill summary." It takes something like this (the actual JSON that normally sits in context):
 
     {
       "tools": [{
         "name": "read_file",
-        "description": "Read the complete contents of a file from the file system. Handles various text encodings and provides detailed error messages if the file cannot be read.",
+        "description": "Read the complete contents of a file from the file system.
+         Handles various text encodings and provides detailed error messages
+         if the file cannot be read.",
         "inputSchema": {
           "type": "object",
           "properties": {
@@ -67,9 +55,7 @@ Before (what sits in the agent's context with native MCP):
       }, ...]
     }
 
-That's 2,147 tokens for just 6 filesystem tools.
-
-After (dietmcp skill summary):
+And turns it into this:
 
     filesystem (6 tools)
 
@@ -79,16 +65,18 @@ After (dietmcp skill summary):
     - move_file(source: str, destination: str) -- Move or rename files
 
     Search
-    - search_files(path: str, pattern: str, ?regex: bool) -- Search for files matching a pattern
+    - search_files(path: str, pattern: str, ?regex: bool) -- Search for files
 
     Exec: dietmcp exec filesystem <tool> --args '{"key": "value"}'
 
-That's 189 tokens. 91.2% reduction. For one server.
+First version is 2,147 tokens. Second version is 189. Same information, just compressed into the format an agent actually needs. It doesn't need to know the JSON Schema type system. It needs to know what the tool does and what to pass it.
 
 
-The Benchmarks
+Did it actually work though
 
-I ran this against 5 real MCP servers with 79 tools total. These are actual token counts, not estimates:
+Yeah. Better than I expected, honestly.
+
+I set up a benchmark with 5 MCP servers — filesystem, github, puppeteer, context7, and supabase. 79 tools total. Here's what the numbers looked like:
 
     Server          Tools    Native JSON    Skill Summary    Reduction
     ---------------------------------------------------------------
@@ -100,124 +88,58 @@ I ran this against 5 real MCP servers with 79 tools total. These are actual toke
     ---------------------------------------------------------------
     TOTAL              79    10,265 tokens  1,813 tokens     82.3%
 
-10,265 tokens compressed to 1,813. Every single turn. That's 8,452 tokens freed up for actual reasoning.
+Over 8,000 tokens freed up. Every turn. That's a lot of room for the agent to actually think.
 
+But the part that surprised me more was the output handling. I hadn't really thought about this going in, but it ended up being just as important.
 
-Output Handling: The Other Half
+When an agent reads a big file through native MCP, the entire contents get dumped into the conversation. A 50KB log file? That's 12,800 tokens just sitting in the chat history. Forever. For a file the agent probably only needed three lines from.
 
-Schema compression is only half the story. The other killer feature is what happens with the response.
-
-When an agent reads a 50KB file through native MCP, all 12,800 tokens of that file content get dumped directly into the conversation history. The agent has to "see" every byte, even if it only needed the first 10 lines.
-
-dietmcp handles this differently. Responses over 50KB are automatically written to a temp file. The agent sees:
+With dietmcp, anything over 50KB gets written to a temp file automatically. The agent sees:
 
     [Response written to /tmp/dietmcp_xyz.txt (51,200 chars)]
 
-14 tokens instead of 12,800. That's a 99.9% reduction.
-
-And because it's a CLI, the agent can pipe and filter before it ever "reads" the output:
-
-    dietmcp exec filesystem read_file --args '{"path": "/tmp/big.log"}' --output-file /tmp/result.txt
-    grep "ERROR" /tmp/result.txt | head -20
-
-The agent only sees the 20 error lines it actually needs. Not the entire 50KB log.
+Fourteen tokens. And then the agent can grep through that file for what it actually needs. It went from "here's the entire haystack in your context window" to "the haystack is over there, go find the needle." Way better.
 
 
-Performance: The Cache Layer
+The cache thing
 
-When you're a CLI that gets called every turn, milliseconds matter. Connecting to an MCP server, spawning the process, initializing the session, and calling list_tools takes about 2 seconds. That's unacceptable for every invocation.
+One problem I hadn't anticipated: MCP tool discovery is slow. Like, 2 seconds slow. Every time you connect to a server, it has to spawn the process, do the handshake, fetch the tool list. For a CLI that gets called every turn, that's painful.
 
-So I built a file-based schema cache with a 1-hour TTL:
+So I added a file-based cache. Tool schemas get saved to disk after the first fetch, and subsequent calls just read the cache file. Cache reads take about 0.09 milliseconds. That's a 23,000x speedup over live discovery. Cache expires after an hour, or whenever you change the server config.
 
-    Cache read:          0.09ms
-    Live MCP discovery:  ~2,000ms
-    Speedup:             23,000x
-
-The cache uses atomic writes (write to temp, then rename) to prevent corruption from concurrent invocations. Cache keys are derived from the server config, so changing the command or args automatically invalidates the cache. No stale data.
+It uses atomic writes — write to a temp file, then rename — so you don't get corruption if two agent calls happen simultaneously. Probably overkill for most use cases, but I've been burned by cache corruption before and I'd rather not debug that again.
 
 
-The Architecture
+Keeping secrets secret
 
-The whole thing is 26 Python files. None over 200 lines.
+This one kept me up at night a little. When you're building a bridge between an AI agent and tools that can read your filesystem, push to your GitHub, and query your database, you really don't want credentials leaking anywhere.
 
-    CLI (click)
-      -> Config (load servers.json, resolve credential placeholders)
-        -> Transport (MCP SDK — stdio or SSE connections)
-          -> Core (discovery, execution, skills generation)
-            -> Cache (file-based, 1hr TTL, atomic writes)
-            -> Formatters (summary, CSV, minified JSON, file redirect)
+The config file uses placeholder syntax — ${GITHUB_TOKEN} instead of the actual token. Credentials get resolved from .env files at runtime. They never show up in CLI arguments (so they're not visible in process lists), and all error output runs through a masking layer that replaces known secret values with asterisks.
 
-Every data model is frozen (immutable Pydantic models). Zero mutation anywhere in the codebase. 111 tests. 83% coverage.
-
-The config format intentionally mirrors claude_desktop_config.json so you can copy server definitions directly:
-
-    {
-      "mcpServers": {
-        "github": {
-          "command": "npx",
-          "args": ["-y", "@modelcontextprotocol/server-github"],
-          "env": { "GITHUB_TOKEN": "${GITHUB_TOKEN}" }
-        }
-      }
-    }
+Is it paranoid? Maybe. But the alternative is an agent accidentally printing your GitHub token in a traceback, and I've seen weirder things happen.
 
 
-Security
+What I'd do differently
 
-Security was non-negotiable. When you're bridging an AI agent to tools that touch your filesystem, database, and GitHub repos, you can't cut corners.
+The tool categorization is pretty basic right now. It groups tools by keyword matching — anything with "file" or "read" in the name goes under "File Operations," anything with "search" goes under "Search." It works okay for most servers but it's not amazing. I've been thinking about whether it's worth using embeddings for smarter grouping, but honestly the simple version handles 90% of cases fine.
 
-Credentials never appear in CLI args. They're pulled from .env files at runtime. No secrets in ps aux output.
-
-Config files use ${VAR_NAME} placeholders. The config is safe to commit to version control.
-
-All error output is auto-masked. If a secret value accidentally appears in a traceback, it gets replaced with *** before it reaches stdout.
-
-Child processes get resolved env vars passed through the MCP SDK's environment injection, never through command-line flags.
+The other thing is connection handling. Right now every invocation opens a fresh connection to the MCP server. It's simple and avoids stale connection bugs, but it means the first call to a server (before caching kicks in) is always that 2-second hit. A persistent connection daemon would be faster, but it's also a lot more complexity to manage. For now the cache makes this a non-issue after the first call.
 
 
-The "Tune" Format
+The takeaway
 
-I call the output post-processing "Tune" formatting. Three modes depending on what the agent needs:
+The thing that keeps sticking with me is how simple the core idea is. Don't put everything in the prompt. The agent doesn't need to internalize the full documentation for every tool it might use. It needs a table of contents and a way to call things.
 
-SUMMARY (default): LLM-friendly text. Truncates long values, adds hints about using --output-file for full content.
+I keep thinking of it as "thin context, fat CLI." Give the agent just enough to know what's available and how to invoke it. Let the actual tool complexity live outside the context window, in a CLI it already knows how to use.
 
-CSV: For tabular data — search results, file listings, database rows. Detects tabular structure automatically and renders as CSV.
+I had an agent running Supabase, GitHub, filesystem, and Puppeteer all at once — 78 tools — and it was handling them fine. Before dietmcp, it would start falling apart around 20. That's not a small difference.
 
-MINIFIED: Compact JSON with whitespace stripped and null fields removed. For when the agent needs to parse structured data programmatically.
-
-Anything over 50KB auto-redirects to a temp file regardless of format. The agent gets a file pointer, not a token avalanche.
-
-
-What This Means in Practice
-
-Picture an agent wired up to Supabase + GitHub + Filesystem + Puppeteer. A realistic production setup.
-
-Before dietmcp: ~30,000 tokens of tool schemas sitting in context every turn. The agent has less room to think, makes more mistakes, costs more per call.
-
-After dietmcp: ~1,800 tokens of skill summaries. The agent knows what's available, knows the bash syntax to call it, and has 28,000 extra tokens for actual reasoning.
-
-That's the difference between an agent that struggles with 20 tools and one that handles 78 without breaking a sweat.
-
-
-Try It
+If you want to try it:
 
     pip install dietmcp
     dietmcp config init
     dietmcp skills --all
 
-Three commands. Your agent now has access to every MCP tool as a bash command.
+Three commands. The config mirrors the claude_desktop_config.json format so you can copy your existing server definitions straight in.
 
-
-The Broader Lesson
-
-The best way to give an AI agent more capabilities is NOT to shove everything into its prompt.
-
-It's to build a layer between the agent and its tools. Let the agent know what's available. Let the CLI handle how.
-
-The agent doesn't need to understand JSON Schema. It doesn't need to see every parameter type and validation rule. It needs to know that read_file takes a path and returns contents. One line. Done.
-
-This is the pattern: thin context, fat CLI. The agent stays focused. The tools stay accessible. The context window stays clean.
-
-dietmcp is open source. 79 tools. 82% token reduction. 23,000x cache speedup.
-
-If you're building with MCP and hitting context limits, this is the fix.
+It's open source. I'd love to hear what breaks.
