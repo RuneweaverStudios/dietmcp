@@ -11,7 +11,7 @@ The thing nobody warns you about
 
 When you connect an MCP server to an agent, every single tool on that server gets its full JSON schema injected into the prompt. The name, the description, every parameter, every type annotation, every nested object. All of it. Every turn. Whether the agent uses the tool or not.
 
-I did the math one afternoon and almost spit out my coffee. My filesystem server alone — six tools — was eating over 2,000 tokens of context. Just sitting there. Doing nothing. My GitHub server was closer to 3,000. Supabase? Over 4,000.
+I did the math one afternoon and almost spit out my coffee. My filesystem server alone, six tools, was eating over 2,000 tokens of context. Just sitting there. Doing nothing. My GitHub server was closer to 3,000. Supabase? Over 4,000.
 
 I had four servers connected. That's roughly 10,000 tokens of JSON schema clogging up the prompt on every single turn. Before my agent even started thinking about the actual task, a quarter of its working memory was already occupied by tool definitions it probably wasn't going to touch.
 
@@ -20,13 +20,13 @@ No wonder it was getting confused. The poor thing was trying to reason through a
 
 The moment it clicked
 
-I was debugging a particularly bad hallucination — the agent kept calling a tool called "query_database" that didn't exist on any of my servers — and I noticed something. When I asked the same agent to do something with bash, it was flawless. curl commands, grep pipelines, file manipulation. Perfect every time.
+I was debugging a particularly bad hallucination. The agent kept calling a tool called "query_database" that didn't exist on any of my servers. And I noticed something. When I asked the same agent to do something with bash, it was flawless. curl commands, grep pipelines, file manipulation. Perfect every time.
 
 And that's when it hit me. The agent already knows bash. It's really, really good at bash. So why am I cramming thousands of tokens of JSON schema into its context when I could just... give it a bash command to run?
 
 What if every MCP tool was just a CLI call?
 
-Instead of the agent needing to understand the full schema for read_file — the type definitions, the property descriptions, the required fields — it just needs to know:
+Instead of the agent needing to understand the full schema for read_file, the type definitions, the property descriptions, the required fields, it just needs to know:
 
     dietmcp exec filesystem read_file --args '{"path": "/tmp/file.txt"}'
 
@@ -35,7 +35,7 @@ One line. That's it. The agent already knows how to construct a command like tha
 
 Building the thing
 
-I spent about a week putting together dietmcp. It's a Python CLI that sits between the agent and whatever MCP servers you have. The idea is pretty straightforward — instead of loading all the tool schemas into the prompt, you give the agent a short cheat sheet and let it call tools through the command line.
+I spent about a week putting together dietmcp. It's a Python CLI that sits between the agent and whatever MCP servers you have. The idea is pretty straightforward. Instead of loading all the tool schemas into the prompt, you give the agent a short cheat sheet and let it call tools through the command line.
 
 The cheat sheet is what I call a "skill summary." It takes something like this (the actual JSON that normally sits in context):
 
@@ -76,7 +76,7 @@ Did it actually work though
 
 Yeah. Better than I expected, honestly.
 
-I set up a benchmark with 5 MCP servers — filesystem, github, puppeteer, context7, and supabase. 79 tools total. Here's what the numbers looked like:
+I set up a benchmark with 5 MCP servers: filesystem, github, puppeteer, context7, and supabase. 79 tools total. Here's what the numbers looked like:
 
     Server          Tools    Native JSON    Skill Summary    Reduction
     ---------------------------------------------------------------
@@ -107,21 +107,21 @@ One problem I hadn't anticipated: MCP tool discovery is slow. Like, 2 seconds sl
 
 So I added a file-based cache. Tool schemas get saved to disk after the first fetch, and subsequent calls just read the cache file. Cache reads take about 0.09 milliseconds. That's a 23,000x speedup over live discovery. Cache expires after an hour, or whenever you change the server config.
 
-It uses atomic writes — write to a temp file, then rename — so you don't get corruption if two agent calls happen simultaneously. Probably overkill for most use cases, but I've been burned by cache corruption before and I'd rather not debug that again.
+It uses atomic writes (write to a temp file, then rename) so you don't get corruption if two agent calls happen simultaneously. Probably overkill for most use cases, but I've been burned by cache corruption before and I'd rather not debug that again.
 
 
 Keeping secrets secret
 
 This one kept me up at night a little. When you're building a bridge between an AI agent and tools that can read your filesystem, push to your GitHub, and query your database, you really don't want credentials leaking anywhere.
 
-The config file uses placeholder syntax — ${GITHUB_TOKEN} instead of the actual token. Credentials get resolved from .env files at runtime. They never show up in CLI arguments (so they're not visible in process lists), and all error output runs through a masking layer that replaces known secret values with asterisks.
+The config file uses placeholder syntax, ${GITHUB_TOKEN} instead of the actual token. Credentials get resolved from .env files at runtime. They never show up in CLI arguments (so they're not visible in process lists), and all error output runs through a masking layer that replaces known secret values with asterisks.
 
 Is it paranoid? Maybe. But the alternative is an agent accidentally printing your GitHub token in a traceback, and I've seen weirder things happen.
 
 
 What I'd do differently
 
-The tool categorization is pretty basic right now. It groups tools by keyword matching — anything with "file" or "read" in the name goes under "File Operations," anything with "search" goes under "Search." It works okay for most servers but it's not amazing. I've been thinking about whether it's worth using embeddings for smarter grouping, but honestly the simple version handles 90% of cases fine.
+The tool categorization is pretty basic right now. It groups tools by keyword matching. Anything with "file" or "read" in the name goes under "File Operations," anything with "search" goes under "Search." It works okay for most servers but it's not amazing. I've been thinking about whether it's worth using embeddings for smarter grouping, but honestly the simple version handles 90% of cases fine.
 
 The other thing is connection handling. Right now every invocation opens a fresh connection to the MCP server. It's simple and avoids stale connection bugs, but it means the first call to a server (before caching kicks in) is always that 2-second hit. A persistent connection daemon would be faster, but it's also a lot more complexity to manage. For now the cache makes this a non-issue after the first call.
 
@@ -132,7 +132,7 @@ The thing that keeps sticking with me is how simple the core idea is. Don't put 
 
 I keep thinking of it as "thin context, fat CLI." Give the agent just enough to know what's available and how to invoke it. Let the actual tool complexity live outside the context window, in a CLI it already knows how to use.
 
-I had an agent running Supabase, GitHub, filesystem, and Puppeteer all at once — 78 tools — and it was handling them fine. Before dietmcp, it would start falling apart around 20. That's not a small difference.
+I had an agent running Supabase, GitHub, filesystem, and Puppeteer all at once. 78 tools. And it was handling them fine. Before dietmcp, it would start falling apart around 20. That's not a small difference.
 
 If you want to try it:
 
