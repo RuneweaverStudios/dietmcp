@@ -217,22 +217,22 @@ curl -sL https://raw.githubusercontent.com/RuneweaverStudios/dietmcp/main/SKILL.
 
 ### OpenClaw Skill
 
-Install from the `openclaw/` directory for OpenClaw-compatible agents.
+The `_meta.json` and `SKILL.md` live at the repo root, so the repo itself is a valid OpenClaw skill.
 
 **From GitHub**:
 
 ```bash
-# Clone the skill directory
-git clone https://github.com/RuneweaverStudios/dietmcp.git
-cp -r dietmcp/openclaw ~/.openclaw/skills/dietmcp
+git clone https://github.com/RuneweaverStudios/dietmcp.git ~/.openclaw/skills/dietmcp
 ```
 
 **Manual install**:
 
 ```bash
 mkdir -p ~/.openclaw/skills/dietmcp
-cp openclaw/_meta.json ~/.openclaw/skills/dietmcp/
-cp openclaw/SKILL.md ~/.openclaw/skills/dietmcp/
+curl -sL https://raw.githubusercontent.com/RuneweaverStudios/dietmcp/main/_meta.json \
+  -o ~/.openclaw/skills/dietmcp/_meta.json
+curl -sL https://raw.githubusercontent.com/RuneweaverStudios/dietmcp/main/SKILL.md \
+  -o ~/.openclaw/skills/dietmcp/SKILL.md
 ```
 
 **Skill metadata** (`_meta.json`):
@@ -243,7 +243,7 @@ cp openclaw/SKILL.md ~/.openclaw/skills/dietmcp/
 | version | 1.0.0 |
 | author | RuneweaverStudios |
 | tags | mcp, context-window, optimization, cli, tool-bridge |
-| tools | Bash |
+| tools | discover, exec, skills, config |
 
 **Prerequisites**: Both skill formats require `dietmcp` to be installed and configured:
 
