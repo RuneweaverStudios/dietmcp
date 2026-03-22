@@ -1,0 +1,65 @@
+{
+  "schema": "openclaw.skill.v1",
+  "name": "dietmcp",
+  "version": "1.0.0",
+  "displayName": "dietmcp - MCP-to-CLI Bridge",
+  "description": "MCP-to-CLI bridge that reduces context window bloat by 90%+. Routes all MCP server calls through lightweight bash commands instead of loading verbose JSON schemas into the agent's context. Supports tool discovery, skill summaries, and formatted output with auto-redirect for large responses.",
+  "author": "RuneweaverStudios",
+  "tags": [
+    "mcp",
+    "context-window",
+    "optimization",
+    "cli",
+    "tool-bridge",
+    "token-reduction",
+    "agent-tools",
+    "openclaw"
+  ],
+  "platform": "openclaw",
+  "dependencies": [
+    "python"
+  ],
+  "icon": "🪶",
+  "tools": [
+    {
+      "name": "discover",
+      "description": "List configured MCP servers and their available tools with parameter info",
+      "params": {
+        "server": "Server name (optional, lists all if omitted)",
+        "refresh": "Bypass cache and fetch fresh schemas",
+        "json": "Output raw JSON schema"
+      }
+    },
+    {
+      "name": "exec",
+      "description": "Execute a tool on an MCP server and return formatted output",
+      "params": {
+        "server": "MCP server name",
+        "tool": "Tool name to execute",
+        "args": "JSON arguments for the tool",
+        "output_format": "summary, minified, or csv",
+        "output_file": "Path to write large responses"
+      }
+    },
+    {
+      "name": "skills",
+      "description": "Generate compact skill summaries that compress ~2000 tokens of JSON schema into ~200 tokens",
+      "params": {
+        "server": "Server name (optional)",
+        "all": "Generate for all configured servers"
+      }
+    },
+    {
+      "name": "config",
+      "description": "Manage dietmcp configuration (init, show, path, add, remove servers)",
+      "params": {
+        "subcommand": "init, show, path, add, or remove"
+      }
+    }
+  ],
+  "requires": {
+    "env": {
+      "optional": ["GITHUB_TOKEN", "API_KEY"]
+    }
+  }
+}

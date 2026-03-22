@@ -65,7 +65,7 @@ pip install dietmcp
 Or for development:
 
 ```bash
-git clone https://github.com/yourorg/dietmcp.git
+git clone https://github.com/RuneweaverStudios/dietmcp.git
 cd dietmcp
 pip install -e ".[dev]"
 ```
@@ -170,6 +170,88 @@ dietmcp exec github list_repos \
 dietmcp exec filesystem read_file \
   --args '{"path": "/tmp/large_file.txt"}' \
   --output-file /tmp/result.txt
+```
+
+---
+
+## Agent Skills
+
+dietmcp is available as an installable skill for Claude Code and OpenClaw, so your AI agent automatically routes MCP calls through the CLI instead of loading native tool schemas.
+
+### Claude Code Skill
+
+Install the skill so Claude Code uses `dietmcp exec` instead of native `mcp__*` tools in every session.
+
+**Project-level** (applies to one project):
+
+```bash
+# From your project directory
+mkdir -p .claude/skills
+cp /path/to/dietmcp/SKILL.md .claude/skills/dietmcp.md
+```
+
+**User-level** (applies to all projects):
+
+```bash
+mkdir -p ~/.claude/skills
+cp /path/to/dietmcp/SKILL.md ~/.claude/skills/dietmcp.md
+```
+
+**From GitHub** (no local clone needed):
+
+```bash
+# Project-level
+mkdir -p .claude/skills
+curl -sL https://raw.githubusercontent.com/RuneweaverStudios/dietmcp/main/SKILL.md \
+  -o .claude/skills/dietmcp.md
+
+# User-level
+mkdir -p ~/.claude/skills
+curl -sL https://raw.githubusercontent.com/RuneweaverStudios/dietmcp/main/SKILL.md \
+  -o ~/.claude/skills/dietmcp.md
+```
+
+**What it does**: Teaches Claude Code to use `dietmcp exec` for all MCP server interactions instead of native `mcp__*` tool calls. Includes quick reference, common patterns (docs lookup, GitHub, database, web search), and output format guidance.
+
+**Verify it works**: Start a Claude Code session and ask it to look up documentation or call an MCP tool. It should use `dietmcp exec` via Bash instead of native MCP tools.
+
+### OpenClaw Skill
+
+Install from the `openclaw/` directory for OpenClaw-compatible agents.
+
+**From GitHub**:
+
+```bash
+# Clone the skill directory
+git clone https://github.com/RuneweaverStudios/dietmcp.git
+cp -r dietmcp/openclaw ~/.openclaw/skills/dietmcp
+```
+
+**Manual install**:
+
+```bash
+mkdir -p ~/.openclaw/skills/dietmcp
+cp openclaw/_meta.json ~/.openclaw/skills/dietmcp/
+cp openclaw/SKILL.md ~/.openclaw/skills/dietmcp/
+```
+
+**Skill metadata** (`_meta.json`):
+
+| Field | Value |
+|-------|-------|
+| name | dietmcp |
+| version | 1.0.0 |
+| author | RuneweaverStudios |
+| tags | mcp, context-window, optimization, cli, tool-bridge |
+| tools | Bash |
+
+**Prerequisites**: Both skill formats require `dietmcp` to be installed and configured:
+
+```bash
+pip install dietmcp
+dietmcp config init
+# Edit ~/.config/dietmcp/servers.json to add your MCP servers
+# Add credentials to ~/.config/dietmcp/.env or your project's .env
 ```
 
 ---
