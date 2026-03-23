@@ -329,17 +329,20 @@ Measured with `tiktoken` (cl100k_base encoding) against real MCP servers. Tool c
 
 *\* Auto-redirected to file; agent receives only a file pointer.*
 
-### End-to-End: Agent Task Completion
+### Docker Verification (March 2026)
 
-Tested with Claude Sonnet 4 on a multi-step coding task requiring filesystem + github tools:
+Independent benchmark run in Docker (`python:3.12-slim`) with the current `@modelcontextprotocol/server-filesystem` (14 tools). Measured with `tiktoken` cl100k_base:
 
-| Metric | Native MCP | dietmcp | Improvement |
-|--------|-----------|---------|-------------|
-| Context tokens per turn | ~8,200 | ~1,400 | **82.9% less** |
-| Total tokens (10-turn task) | 142,000 | 68,000 | **52.1% less** |
-| Hallucination rate (tool calls) | 12.3% | 3.1% | **74.8% fewer** |
-| Task completion rate | 78% | 94% | **+16pp** |
-| Avg response latency | 4.2s | 2.8s | **33% faster** |
+| Claim | Result | Verdict |
+|-------|--------|---------|
+| 80-90% schema token reduction | **81.3%** (2,345 → 438 tokens, 14 tools) | Confirmed |
+| Large file auto-redirect | **99.6%** reduction (6,252 → 22 tokens) | Confirmed |
+| 3 output formats | summary/minified/csv all produce valid output | Confirmed |
+| Cache speedup | **4.9x** faster on warm hit (1.58s → 0.32s) | Confirmed |
+| File redirect (`--output-file`) | Writes to disk, returns pointer in stdout | Confirmed |
+| Error exit codes | All error cases exit non-zero | Confirmed |
+
+**Notes:** Small files (<50KB) show minimal summary-vs-minified reduction since both fit under `maxResponseSize`. The major token savings come from schema compression (skill summaries vs JSON schemas) and auto-redirect for large responses.
 
 ---
 
