@@ -331,7 +331,7 @@ Measured with `tiktoken` (cl100k_base encoding) against real MCP servers. Tool c
 
 ### Docker Verification (March 2026)
 
-Independent benchmark run in Docker (`python:3.12-slim`) with the current `@modelcontextprotocol/server-filesystem` (14 tools). Measured with `tiktoken` cl100k_base:
+Independent benchmark run in Docker (`python:3.12-slim`) with the current `@modelcontextprotocol/server-filesystem` (14 tools). Full suite: [dietmcp-bench](https://github.com/RuneweaverStudios/dietmcp-bench).
 
 | Claim | Result | Verdict |
 |-------|--------|---------|
@@ -342,7 +342,11 @@ Independent benchmark run in Docker (`python:3.12-slim`) with the current `@mode
 | File redirect (`--output-file`) | Writes to disk, returns pointer in stdout | Confirmed |
 | Error exit codes | All error cases exit non-zero | Confirmed |
 
-**Notes:** Small files (<50KB) show minimal summary-vs-minified reduction since both fit under `maxResponseSize`. The major token savings come from schema compression (skill summaries vs JSON schemas) and auto-redirect for large responses.
+```bash
+# Run it yourself
+docker build -t dietmcp-bench https://github.com/RuneweaverStudios/dietmcp-bench.git
+docker run --rm dietmcp-bench
+```
 
 ---
 
