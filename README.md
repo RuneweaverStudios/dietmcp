@@ -85,7 +85,15 @@ pip install -e ".[dev]"
 dietmcp config init
 ```
 
-This creates `~/.config/dietmcp/servers.json` with example servers:
+This creates a config file with example servers. The path is platform-dependent (uses [`platformdirs`](https://github.com/platformdirs/platformdirs)):
+
+| Platform | Config Path |
+|----------|-------------|
+| Linux | `~/.config/dietmcp/servers.json` |
+| macOS | `~/Library/Application Support/dietmcp/servers.json` |
+| Windows | `%LOCALAPPDATA%\dietmcp\servers.json` |
+
+Run `dietmcp config path` to see your platform's path.
 
 ```json
 {
@@ -97,7 +105,7 @@ This creates `~/.config/dietmcp/servers.json` with example servers:
     "github": {
       "command": "npx",
       "args": ["-y", "@modelcontextprotocol/server-github"],
-      "env": { "GITHUB_TOKEN": "${GITHUB_TOKEN}" }
+      "env": { "GITHUB_PERSONAL_ACCESS_TOKEN": "${GITHUB_PERSONAL_ACCESS_TOKEN}" }
     }
   },
   "defaults": {
@@ -250,8 +258,8 @@ curl -sL https://raw.githubusercontent.com/RuneweaverStudios/dietmcp/main/SKILL.
 ```bash
 pip install dietmcp
 dietmcp config init
-# Edit ~/.config/dietmcp/servers.json to add your MCP servers
-# Add credentials to ~/.config/dietmcp/.env or your project's .env
+# Edit the config file to add your MCP servers (run 'dietmcp config path' to find it)
+# Add credentials to your config dir's .env or your project's .env
 ```
 
 ---
@@ -296,12 +304,12 @@ CLI invocation
 
 ## Benchmarks: Token Usage Comparison
 
-Measured with `tiktoken` (cl100k_base encoding) against real MCP servers:
+Measured with `tiktoken` (cl100k_base encoding) against real MCP servers. Tool counts reflect the server versions available at time of measurement and may differ from current releases.
 
 ### Schema Size (Context Window Impact)
 
-| Server | Tools | Native JSON Schema | dietmcp Skill Summary | Reduction |
-|--------|-------|-------------------|----------------------|-----------|
+| Server | Tools (at test time) | Native JSON Schema | dietmcp Skill Summary | Reduction |
+|--------|---------------------|-------------------|----------------------|-----------|
 | filesystem | 6 | 2,147 tokens | 189 tokens | **91.2%** |
 | github | 15 | 5,832 tokens | 412 tokens | **92.9%** |
 | puppeteer | 12 | 4,291 tokens | 347 tokens | **91.9%** |
@@ -384,7 +392,7 @@ Responses exceeding `maxResponseSize` (default 50KB) are automatically written t
 ```bash
 # Print path
 dietmcp config path
-# Default: ~/.config/dietmcp/servers.json
+# Platform-dependent (Linux: ~/.config/dietmcp, macOS: ~/Library/Application Support/dietmcp)
 ```
 
 ### Server Types
@@ -417,12 +425,12 @@ dietmcp config path
 Secrets are **never stored in the config file**. Use `${VAR_NAME}` placeholders that resolve at runtime from:
 
 1. `.env` file in current directory
-2. `~/.config/dietmcp/.env`
+2. `.env` in your config directory (run `dietmcp config path` to find it)
 3. Shell environment variables
 
 ```bash
 # .env
-GITHUB_TOKEN=ghp_abc123
+GITHUB_PERSONAL_ACCESS_TOKEN=ghp_abc123
 API_KEY=sk-xyz789
 ```
 
@@ -444,7 +452,7 @@ Secrets are automatically masked in all error output and `--verbose` logs.
 }
 ```
 
-Cache files live in `~/.cache/dietmcp/`. Invalidate with:
+Cache files live in your platform's cache directory (Linux: `~/.cache/dietmcp/`, macOS: `~/Library/Caches/dietmcp/`). Invalidate with:
 
 ```bash
 dietmcp discover <server> --refresh

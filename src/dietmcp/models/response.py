@@ -12,6 +12,7 @@ class TunedResponse(BaseModel):
 
     format_name: str
     content: str
+    is_error: bool = False
     was_truncated: bool = False
     output_path: str | None = None
 

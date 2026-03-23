@@ -37,6 +37,7 @@ class TestSummaryFormatter:
         fmt = SummaryFormatter()
         result = fmt.format(error_tool_result, max_size=10000)
         assert "[ERROR]" in result.content
+        assert result.is_error is True
 
     def test_error_truncated(self):
         result = ToolResult(
@@ -46,6 +47,12 @@ class TestSummaryFormatter:
         response = fmt.format(result, max_size=100)
         assert "[ERROR]" in response.content
         assert response.was_truncated is True
+        assert response.is_error is True
+
+    def test_non_error_is_error_false(self, text_tool_result):
+        fmt = SummaryFormatter()
+        result = fmt.format(text_tool_result, max_size=10000)
+        assert result.is_error is False
 
 
 class TestMinifiedFormatter:
@@ -78,6 +85,14 @@ class TestMinifiedFormatter:
         assert response.was_truncated is True
         assert len(response.content) == 50
 
+    def test_is_error_propagated(self):
+        result = ToolResult(
+            content=[{"type": "text", "text": "fail"}], is_error=True
+        )
+        fmt = MinifiedFormatter()
+        response = fmt.format(result, max_size=10000)
+        assert response.is_error is True
+
 
 class TestCsvFormatter:
     def test_tabular_data(self, tabular_tool_result):
@@ -98,6 +113,23 @@ class TestCsvFormatter:
         response = fmt.format(result, max_size=10000)
         # Empty array should produce empty output
         assert response.content == ""
+
+    def test_is_error_propagated_tabular(self):
+        data = json.dumps([{"a": 1}])
+        result = ToolResult(
+            content=[{"type": "text", "text": data}], is_error=True
+        )
+        fmt = CsvFormatter()
+        response = fmt.format(result, max_size=10000)
+        assert response.is_error is True
+
+    def test_is_error_propagated_non_tabular(self):
+        result = ToolResult(
+            content=[{"type": "text", "text": "fail"}], is_error=True
+        )
+        fmt = CsvFormatter()
+        response = fmt.format(result, max_size=10000)
+        assert response.is_error is True
 
 
 class TestFormatterRegistry:
@@ -156,3 +188,17 @@ class TestFileWriter:
         display = resp.display()
         assert "out.txt" in display
         assert "500" in display
+
+    def test_is_error_propagated_to_file(self, tmp_path):
+        resp = TunedResponse(format_name="summary", content="error", is_error=True)
+        out = str(tmp_path / "err.txt")
+        result = write_response(resp, output_path=out, max_stdout_size=1000)
+        assert result.is_error is True
+
+    def test_is_error_propagated_on_auto_redirect(self):
+        large = "x" * 10000
+        resp = TunedResponse(format_name="summary", content=large, is_error=True)
+        result = write_response(resp, output_path=None, max_stdout_size=1000)
+        assert result.is_error is True
+        # Clean up
+        os.unlink(result.output_path)

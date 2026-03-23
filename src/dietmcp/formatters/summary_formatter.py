@@ -31,5 +31,6 @@ class SummaryFormatter:
         return TunedResponse(
             format_name="summary",
             content=content,
+            is_error=result.is_error,
             was_truncated=was_truncated,
         )

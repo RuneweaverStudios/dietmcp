@@ -27,6 +27,7 @@ class CsvFormatter:
             return TunedResponse(
                 format_name="csv",
                 content=text[:max_size] if was_truncated else text,
+                is_error=result.is_error,
                 was_truncated=was_truncated,
             )
 
@@ -43,6 +44,7 @@ class CsvFormatter:
         return TunedResponse(
             format_name="csv",
             content=text[:max_size] if was_truncated else text,
+            is_error=result.is_error,
             was_truncated=was_truncated,
         )
 

@@ -44,7 +44,15 @@ async def skills_cmd(
         click.echo("Specify a SERVER name or use --all.", err=True)
         raise SystemExit(1)
 
+    errors = []
     for name in names:
-        summary = await generate_skills(name, config, force_refresh=refresh)
-        click.echo(summary.render())
-        click.echo()
+        try:
+            summary = await generate_skills(name, config, force_refresh=refresh)
+            click.echo(summary.render())
+            click.echo()
+        except Exception as exc:
+            errors.append(name)
+            click.echo(f"# {name}: skipped ({exc})", err=True)
+
+    if errors and len(errors) == len(names):
+        raise SystemExit(1)

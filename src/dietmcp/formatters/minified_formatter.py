@@ -23,6 +23,7 @@ class MinifiedFormatter:
         return TunedResponse(
             format_name="minified",
             content=text,
+            is_error=result.is_error,
             was_truncated=was_truncated,
         )
 

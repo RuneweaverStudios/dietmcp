@@ -29,6 +29,7 @@ def write_response(
         return TunedResponse(
             format_name=response.format_name,
             content=content,
+            is_error=response.is_error,
             was_truncated=response.was_truncated,
             output_path=output_path,
         )
@@ -38,6 +39,7 @@ def write_response(
         return TunedResponse(
             format_name=response.format_name,
             content=content,
+            is_error=response.is_error,
             was_truncated=response.was_truncated,
             output_path=tmp_path,
         )

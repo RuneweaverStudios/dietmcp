@@ -72,3 +72,5 @@ async def exec_cmd(
         sys.exit(1)
 
     click.echo(response.display())
+    if response.is_error:
+        sys.exit(1)
