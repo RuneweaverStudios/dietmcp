@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import os
 from pathlib import Path
 
 import click
@@ -14,6 +15,7 @@ from dietmcp.cli.common import (
 )
 from dietmcp.config.loader import list_server_names, load_config
 from dietmcp.core.skills_generator import generate_skills
+from dietmcp.security.masking import collect_secret_values, mask_secrets
 
 
 @click.command("skills")
@@ -52,7 +54,9 @@ async def skills_cmd(
             click.echo()
         except Exception as exc:
             errors.append(name)
-            click.echo(f"# {name}: skipped ({exc})", err=True)
+            secrets = collect_secret_values(dict(os.environ))
+            safe_msg = mask_secrets(str(exc), secrets)
+            click.echo(f"# {name}: skipped ({safe_msg})", err=True)
 
-    if errors and len(errors) == len(names):
+    if errors:
         raise SystemExit(1)

@@ -41,8 +41,9 @@ def handle_errors(fn: Callable) -> Callable:
             click.echo("\nInterrupted.", err=True)
             sys.exit(130)
         except Exception as exc:
-            # Mask any secrets that might appear in tracebacks
-            msg = str(exc)
+            import os
+            secrets = collect_secret_values(dict(os.environ))
+            msg = mask_secrets(str(exc), secrets)
             click.echo(f"Unexpected error: {msg}", err=True)
             sys.exit(1)
 
