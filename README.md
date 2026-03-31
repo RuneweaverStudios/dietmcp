@@ -59,10 +59,10 @@ Exec: dietmcp exec filesystem <tool> --args '{"key": "value"}'
 ## Installation
 
 ```bash
-pip install dietmcp
+pip install git+https://github.com/RuneweaverStudios/dietmcp.git
 ```
 
-Or for development:
+For development:
 
 ```bash
 git clone https://github.com/RuneweaverStudios/dietmcp.git
@@ -256,7 +256,7 @@ curl -sL https://raw.githubusercontent.com/RuneweaverStudios/dietmcp/main/SKILL.
 **Prerequisites**: Both skill formats require `dietmcp` to be installed and configured:
 
 ```bash
-pip install dietmcp
+pip install git+https://github.com/RuneweaverStudios/dietmcp.git
 dietmcp config init
 # Edit the config file to add your MCP servers (run 'dietmcp config path' to find it)
 # Add credentials to your config dir's .env or your project's .env

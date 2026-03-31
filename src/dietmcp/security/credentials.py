@@ -76,10 +76,9 @@ def collect_env(dotenv_paths: list[Path] | None = None) -> dict[str, str]:
     """
     paths = dotenv_paths or []
     dotenv_vars = load_env_files(*paths)
-    # Inject into os.environ so transport/connection.py child processes
-    # get these values when building their environment via dict(os.environ).
-    for k, v in dotenv_vars.items():
-        os.environ.setdefault(k, v)
+    # Merge os.environ with dotenv (dotenv wins on conflict).
+    # Does NOT mutate os.environ — child process env is built
+    # separately in transport/connection.py via config.env.
     combined = dict(os.environ)
     combined.update(dotenv_vars)
     return combined

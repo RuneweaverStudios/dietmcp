@@ -5,6 +5,7 @@ from __future__ import annotations
 import click
 
 from dietmcp import __version__
+from dietmcp.cli.cache_cmd import cache_cmd
 from dietmcp.cli.config_cmd import config_cmd
 from dietmcp.cli.discover import discover_cmd
 from dietmcp.cli.exec import exec_cmd
@@ -21,6 +22,7 @@ def cli() -> None:
     """
 
 
+cli.add_command(cache_cmd)
 cli.add_command(discover_cmd)
 cli.add_command(exec_cmd)
 cli.add_command(skills_cmd)

@@ -7,6 +7,14 @@ description: MCP-via-CLI bridge. Use instead of native mcp__* tool calls to redu
 
 Route MCP server calls through `dietmcp exec` via Bash instead of native `mcp__*` tools.
 
+## Setup
+
+```bash
+pip install git+https://github.com/RuneweaverStudios/dietmcp.git
+dietmcp config init
+# Edit config: dietmcp config path → open that file, add your MCP servers
+```
+
 ## Syntax
 
 ```bash

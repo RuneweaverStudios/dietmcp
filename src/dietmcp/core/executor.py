@@ -15,6 +15,8 @@ DEV NOTES:
 
 from __future__ import annotations
 
+import asyncio
+
 from dietmcp.cache.tool_cache import ToolCache
 from dietmcp.config.loader import DietMcpConfig, get_server_config
 from dietmcp.core.discovery import discover_tools
@@ -22,6 +24,7 @@ from dietmcp.formatters.base import Formatter
 from dietmcp.formatters.file_writer import write_response
 from dietmcp.formatters.registry import get_formatter
 from dietmcp.models.response import TunedResponse
+from dietmcp.models.server import ServerConfig
 from dietmcp.models.tool import ToolResult
 from dietmcp.transport.connection import connect
 
@@ -84,11 +87,23 @@ async def execute_tool(
 
 
 async def _call_tool(
-    server_config, tool_name: str, arguments: dict
+    server_config: ServerConfig,
+    tool_name: str,
+    arguments: dict,
+    timeout: float = 30.0,
 ) -> ToolResult:
     """Connect to server and execute a single tool call."""
     async with connect(server_config) as session:
-        result = await session.call_tool(tool_name, arguments)
+        try:
+            result = await asyncio.wait_for(
+                session.call_tool(tool_name, arguments),
+                timeout=timeout,
+            )
+        except asyncio.TimeoutError:
+            raise ExecutionError(
+                f"Tool '{tool_name}' timed out after {timeout}s. "
+                f"The MCP server may be unresponsive."
+            )
 
     content_blocks = []
     for item in result.content:

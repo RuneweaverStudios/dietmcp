@@ -46,17 +46,27 @@ async def skills_cmd(
         click.echo("Specify a SERVER name or use --all.", err=True)
         raise SystemExit(1)
 
-    errors = []
-    for name in names:
+    import asyncio
+
+    async def _gen(name: str) -> tuple[str, str | None, str | None]:
         try:
             summary = await generate_skills(name, config, force_refresh=refresh)
-            click.echo(summary.render())
-            click.echo()
+            return (name, summary.render(), None)
         except Exception as exc:
-            errors.append(name)
             secrets = collect_secret_values(dict(os.environ))
             safe_msg = mask_secrets(str(exc), secrets)
-            click.echo(f"# {name}: skipped ({safe_msg})", err=True)
+            return (name, None, safe_msg)
+
+    results = await asyncio.gather(*[_gen(n) for n in names])
+
+    errors = []
+    for name, rendered, err_msg in results:
+        if rendered:
+            click.echo(rendered)
+            click.echo()
+        else:
+            errors.append(name)
+            click.echo(f"# {name}: skipped ({err_msg})", err=True)
 
     if errors:
         raise SystemExit(1)
