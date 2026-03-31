@@ -10,7 +10,7 @@ Route MCP server calls through `dietmcp exec` via Bash instead of native `mcp__*
 ## Setup
 
 ```bash
-pip install git+https://github.com/RuneweaverStudios/dietmcp.git
+pip install git+https://github.com/austindixson/dietmcp.git
 dietmcp config init
 # Edit config: dietmcp config path → open that file, add your MCP servers
 ```

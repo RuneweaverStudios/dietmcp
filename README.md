@@ -59,13 +59,13 @@ Exec: dietmcp exec filesystem <tool> --args '{"key": "value"}'
 ## Installation
 
 ```bash
-pip install git+https://github.com/RuneweaverStudios/dietmcp.git
+pip install git+https://github.com/austindixson/dietmcp.git
 ```
 
 For development:
 
 ```bash
-git clone https://github.com/RuneweaverStudios/dietmcp.git
+git clone https://github.com/austindixson/dietmcp.git
 cd dietmcp
 pip install -e ".[dev]"
 ```
@@ -210,12 +210,12 @@ cp /path/to/dietmcp/SKILL.md ~/.claude/skills/dietmcp.md
 ```bash
 # Project-level
 mkdir -p .claude/skills
-curl -sL https://raw.githubusercontent.com/RuneweaverStudios/dietmcp/main/SKILL.md \
+curl -sL https://raw.githubusercontent.com/austindixson/dietmcp/main/SKILL.md \
   -o .claude/skills/dietmcp.md
 
 # User-level
 mkdir -p ~/.claude/skills
-curl -sL https://raw.githubusercontent.com/RuneweaverStudios/dietmcp/main/SKILL.md \
+curl -sL https://raw.githubusercontent.com/austindixson/dietmcp/main/SKILL.md \
   -o ~/.claude/skills/dietmcp.md
 ```
 
@@ -230,16 +230,16 @@ The `_meta.json` and `SKILL.md` live at the repo root, so the repo itself is a v
 **From GitHub**:
 
 ```bash
-git clone https://github.com/RuneweaverStudios/dietmcp.git ~/.openclaw/skills/dietmcp
+git clone https://github.com/austindixson/dietmcp.git ~/.openclaw/skills/dietmcp
 ```
 
 **Manual install**:
 
 ```bash
 mkdir -p ~/.openclaw/skills/dietmcp
-curl -sL https://raw.githubusercontent.com/RuneweaverStudios/dietmcp/main/_meta.json \
+curl -sL https://raw.githubusercontent.com/austindixson/dietmcp/main/_meta.json \
   -o ~/.openclaw/skills/dietmcp/_meta.json
-curl -sL https://raw.githubusercontent.com/RuneweaverStudios/dietmcp/main/SKILL.md \
+curl -sL https://raw.githubusercontent.com/austindixson/dietmcp/main/SKILL.md \
   -o ~/.openclaw/skills/dietmcp/SKILL.md
 ```
 
@@ -249,14 +249,14 @@ curl -sL https://raw.githubusercontent.com/RuneweaverStudios/dietmcp/main/SKILL.
 |-------|-------|
 | name | dietmcp |
 | version | 1.0.0 |
-| author | RuneweaverStudios |
+| author | austindixson |
 | tags | mcp, context-window, optimization, cli, tool-bridge |
 | tools | discover, exec, skills, config |
 
 **Prerequisites**: Both skill formats require `dietmcp` to be installed and configured:
 
 ```bash
-pip install git+https://github.com/RuneweaverStudios/dietmcp.git
+pip install git+https://github.com/austindixson/dietmcp.git
 dietmcp config init
 # Edit the config file to add your MCP servers (run 'dietmcp config path' to find it)
 # Add credentials to your config dir's .env or your project's .env
@@ -331,7 +331,7 @@ Measured with `tiktoken` (cl100k_base encoding) against real MCP servers. Tool c
 
 ### Docker Verification (March 2026)
 
-Independent benchmark run in Docker (`python:3.12-slim`) with the current `@modelcontextprotocol/server-filesystem` (14 tools). Full suite: [dietmcp-bench](https://github.com/RuneweaverStudios/dietmcp-bench).
+Independent benchmark run in Docker (`python:3.12-slim`) with the current `@modelcontextprotocol/server-filesystem` (14 tools). Full suite: [dietmcp-bench](https://github.com/austindixson/dietmcp-bench).
 
 | Claim | Result | Verdict |
 |-------|--------|---------|
@@ -344,7 +344,7 @@ Independent benchmark run in Docker (`python:3.12-slim`) with the current `@mode
 
 ```bash
 # Run it yourself
-docker build -t dietmcp-bench https://github.com/RuneweaverStudios/dietmcp-bench.git
+docker build -t dietmcp-bench https://github.com/austindixson/dietmcp-bench.git
 docker run --rm dietmcp-bench
 ```
 

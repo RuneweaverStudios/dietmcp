@@ -4,7 +4,7 @@
   "version": "1.0.0",
   "displayName": "dietmcp - MCP-to-CLI Bridge",
   "description": "MCP-to-CLI bridge that reduces context window bloat by 80-90%. Routes all MCP server calls through lightweight bash commands instead of loading verbose JSON schemas into the agent's context. Supports tool discovery, skill summaries, and formatted output with auto-redirect for large responses.",
-  "author": "RuneweaverStudios",
+  "author": "austindixson",
   "tags": [
     "mcp",
     "context-window",
