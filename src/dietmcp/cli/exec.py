@@ -26,6 +26,8 @@ from dietmcp.core.executor import ExecutionError, ToolNotFoundError, execute_too
 @config_option
 @format_option
 @output_file_option
+@click.option("--protocol", type=click.Choice(["mcp", "openapi", "graphql"], case_sensitive=False),
+              help="Explicit protocol (auto-detected if not specified)")
 @handle_errors
 @async_command
 async def exec_cmd(
@@ -35,11 +37,18 @@ async def exec_cmd(
     config_path: Path | None,
     output_format: str | None,
     output_file: Path | None,
+    protocol: str | None,
 ) -> None:
-    """Execute a tool on an MCP server.
+    """Execute a tool on an MCP, OpenAPI, or GraphQL server.
+
+    Protocol auto-detection:
+    - MCP servers (stdio/SSE): Listed in config.mcpServers
+    - OpenAPI (REST): Listed in config.openapiServers
+    - GraphQL: Listed in config.graphqlServers
 
     Example:
         dietmcp exec filesystem read_file --args '{"path": "/tmp/test.txt"}'
+        dietmcp exec petstore getPetById --args '{"petId": 1}'
     """
     config = load_config(config_path)
     fmt = output_format or config.defaults.output_format
@@ -63,6 +72,7 @@ async def exec_cmd(
             config=config,
             output_format=fmt,
             output_file=str(output_file) if output_file else None,
+            protocol=protocol,
         )
     except ToolNotFoundError as exc:
         click.echo(str(exc), err=True)
@@ -70,6 +80,12 @@ async def exec_cmd(
     except ExecutionError as exc:
         click.echo(f"Execution error: {exc}", err=True)
         sys.exit(1)
+    except Exception as exc:
+        from dietmcp.config.loader import ConfigError
+        if isinstance(exc, ConfigError):
+            click.echo(str(exc), err=True)
+            sys.exit(1)
+        raise
 
     click.echo(response.display())
     if response.is_error:

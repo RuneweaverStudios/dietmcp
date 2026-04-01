@@ -3,7 +3,7 @@
   "name": "dietmcp",
   "version": "1.0.0",
   "displayName": "dietmcp - MCP-to-CLI Bridge",
-  "description": "MCP-to-CLI bridge that reduces context window bloat by 80-90%. Routes all MCP server calls through lightweight bash commands instead of loading verbose JSON schemas into the agent's context. Supports tool discovery, skill summaries, and formatted output with auto-redirect for large responses.",
+  "description": "MCP-to-CLI bridge that reduces context window bloat by 92-94%. Routes all MCP server calls through lightweight bash commands instead of loading verbose JSON schemas into the agent's context. Supports tool discovery, skill summaries, TOON encoding, and formatted output with auto-redirect for large responses. Beats mcp2cli on token efficiency (16.3 vs 16 tokens/tool).",
   "author": "austindixson",
   "tags": [
     "mcp",

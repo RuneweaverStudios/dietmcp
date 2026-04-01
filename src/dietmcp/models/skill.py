@@ -12,9 +12,15 @@ class SkillEntry(BaseModel):
 
     signature: str
     description: str
+    ultra_compact: bool = False
 
     def render(self) -> str:
-        return f"- {self.signature} -- {self.description}"
+        if self.ultra_compact:
+            # Ultra-compact: no bullet, no dashes, just signature + description
+            return f"{self.signature} {self.description}"
+        else:
+            # Standard compact: bullet + dashes
+            return f"- {self.signature} -- {self.description}"
 
 
 class SkillCategory(BaseModel):
@@ -24,11 +30,14 @@ class SkillCategory(BaseModel):
 
     name: str
     tools: tuple[SkillEntry, ...]
+    ultra_compact: bool = False
 
     def render(self) -> str:
         lines = [f"## {self.name}"]
         for tool in self.tools:
-            lines.append(tool.render())
+            # Update tool's ultra_compact flag before rendering
+            tool_with_flag = tool.model_copy(update={"ultra_compact": self.ultra_compact})
+            lines.append(tool_with_flag.render())
         return "\n".join(lines)
 
 
@@ -41,11 +50,14 @@ class SkillSummary(BaseModel):
     tool_count: int
     categories: tuple[SkillCategory, ...]
     exec_syntax: str
+    ultra_compact: bool = False
 
     def render(self) -> str:
         lines = [f"# {self.server_name} ({self.tool_count} tools)", ""]
         for category in self.categories:
-            lines.append(category.render())
+            # Update category's ultra_compact flag before rendering
+            cat_with_flag = category.model_copy(update={"ultra_compact": self.ultra_compact})
+            lines.append(cat_with_flag.render())
             lines.append("")
         lines.append(f"Exec: {self.exec_syntax}")
         return "\n".join(lines)

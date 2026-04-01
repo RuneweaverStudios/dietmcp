@@ -8,12 +8,14 @@ from dietmcp.formatters.base import Formatter
 from dietmcp.formatters.csv_formatter import CsvFormatter
 from dietmcp.formatters.minified_formatter import MinifiedFormatter
 from dietmcp.formatters.summary_formatter import SummaryFormatter
+from dietmcp.formatters.toon_formatter import ToonFormatter
 
 
 _FORMATTERS: dict[str, Formatter] = {
     "summary": SummaryFormatter(),
     "minified": MinifiedFormatter(),
     "csv": CsvFormatter(),
+    "toon": ToonFormatter(),
 }
 
 

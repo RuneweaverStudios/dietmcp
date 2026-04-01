@@ -1,0 +1,62 @@
+{
+  "$comment": "Example dietmcp configuration with all three protocols: MCP, OpenAPI, and GraphQL",
+  "mcpServers": {
+    "filesystem": {
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-filesystem", "/tmp"],
+      "env": {
+        "NODE_ENV": "production"
+      }
+    },
+    "github": {
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-github"],
+      "env": {
+        "GITHUB_PERSONAL_ACCESS_TOKEN": "${GITHUB_PERSONAL_ACCESS_TOKEN}"
+      }
+    },
+    "brave-search": {
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-brave-search"],
+      "env": {
+        "BRAVE_API_KEY": "${BRAVE_API_KEY}"
+      }
+    }
+  },
+  "openapiServers": {
+    "petstore": {
+      "url": "https://petstore.swagger.io/v2/swagger.json",
+      "baseUrl": "https://petstore.swagger.io/v2",
+      "auth": null,
+      "cacheTtl": 7200
+    },
+    "stripe": {
+      "url": "https://raw.githubusercontent.com/stripe/openapi/master/openapi/spec3.json",
+      "baseUrl": "https://api.stripe.com/v1",
+      "auth": {
+        "header": "Authorization: Bearer ${STRIPE_API_KEY}"
+      },
+      "cacheTtl": 3600
+    }
+  },
+  "graphqlServers": {
+    "github": {
+      "url": "https://api.github.com/graphql",
+      "auth": {
+        "header": "Authorization: Bearer ${GITHUB_TOKEN}"
+      },
+      "cacheTtl": 1800
+    },
+    "graphqlzero": {
+      "url": "https://graphqlzero.almansi.me/api",
+      "auth": null,
+      "cacheTtl": 3600
+    }
+  },
+  "defaults": {
+    "cacheTtlSeconds": 3600,
+    "outputFormat": "summary",
+    "maxResponseSize": 50000,
+    "envFile": null
+  }
+}

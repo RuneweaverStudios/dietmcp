@@ -11,7 +11,7 @@ from dietmcp.config.schema import DietMcpConfig
 from dietmcp.core.executor import (
     ExecutionError,
     ToolNotFoundError,
-    _call_tool,
+    _call_mcp_tool,
     execute_tool,
 )
 from dietmcp.models.server import ServerConfig
@@ -57,8 +57,8 @@ def _make_call_result(text: str, is_error: bool = False) -> MagicMock:
     return result
 
 
-class TestCallTool:
-    """Test the low-level _call_tool function."""
+class TestCallMcpTool:
+    """Test the low-level _call_mcp_tool function."""
 
     @pytest.mark.asyncio
     async def test_text_content_extracted(self, server_config):
@@ -71,7 +71,7 @@ class TestCallTool:
             mock_connect.return_value.__aenter__ = AsyncMock(return_value=mock_session)
             mock_connect.return_value.__aexit__ = AsyncMock(return_value=False)
 
-            result = await _call_tool(server_config, "read_file", {"path": "/tmp"})
+            result = await _call_mcp_tool(server_config, "read_file", {"path": "/tmp"})
 
         assert result.content[0]["type"] == "text"
         assert result.content[0]["text"] == "hello world"
@@ -88,7 +88,7 @@ class TestCallTool:
             mock_connect.return_value.__aenter__ = AsyncMock(return_value=mock_session)
             mock_connect.return_value.__aexit__ = AsyncMock(return_value=False)
 
-            result = await _call_tool(server_config, "read_file", {})
+            result = await _call_mcp_tool(server_config, "read_file", {})
 
         assert result.is_error is True
 
@@ -106,7 +106,7 @@ class TestCallTool:
             mock_connect.return_value.__aexit__ = AsyncMock(return_value=False)
 
             with pytest.raises(ExecutionError, match="timed out"):
-                await _call_tool(server_config, "slow_tool", {}, timeout=0.1)
+                await _call_mcp_tool(server_config, "slow_tool", {}, timeout=0.1)
 
     @pytest.mark.asyncio
     async def test_binary_content_truncated(self, server_config):
@@ -125,7 +125,7 @@ class TestCallTool:
             mock_connect.return_value.__aenter__ = AsyncMock(return_value=mock_session)
             mock_connect.return_value.__aexit__ = AsyncMock(return_value=False)
 
-            tool_result = await _call_tool(server_config, "get_image", {})
+            tool_result = await _call_mcp_tool(server_config, "get_image", {})
 
         assert tool_result.content[0]["type"] == "binary"
         assert len(tool_result.content[0]["data"]) == 200
@@ -172,3 +172,107 @@ class TestExecuteTool:
 
         assert "file contents" in response.content
         assert response.is_error is False
+
+
+class TestGraphQLSchemaCaching:
+    """Test GraphQL schema caching to avoid double introspection."""
+
+    @pytest.mark.asyncio
+    async def test_schema_caching_avoids_double_introspection(self):
+        """Test that schema caching prevents redundant introspection."""
+        from dietmcp.models.graphql import (
+            GraphQLSchema,
+            GraphQLType,
+            GraphQLField,
+            GraphQLOperation,
+            GraphQLArgument,
+        )
+        from unittest.mock import AsyncMock, MagicMock, patch
+
+        # Setup sample schema with minimal required fields
+        test_field = GraphQLField(
+            name="getUser",
+            description="Get user",
+            type_name="User",
+            type_kind="OBJECT",
+            args=[],
+        )
+
+        test_operation = GraphQLOperation(
+            name="getUser",
+            description="Get user",
+            field=test_field,
+        )
+
+        sample_schema = GraphQLSchema(
+            query_type_name="Query",
+            mutation_type_name=None,
+            types={},
+            queries=[test_operation],
+            mutations=[],
+        )
+
+        # Setup config
+        config = DietMcpConfig.model_validate({
+            "graphqlServers": {
+                "github": {
+                    "url": "https://api.github.com/graphql",
+                    "auth": {"header": "Authorization: Bearer test_token"}
+                }
+            }
+        })
+
+        # Mock introspection to count calls
+        with patch("dietmcp.graphql.introspection.GraphQLIntrospector.introspect") as mock_introspect:
+            mock_introspect.return_value = sample_schema
+
+            # Mock executor.execute()
+            with patch("dietmcp.graphql.executor.GraphQLExecutor.execute") as mock_execute:
+                mock_execute.return_value = ToolResult(
+                    content=[{"type": "text", "text": '{"data": {"user": "test"}}'}],
+                    is_error=False,
+                )
+
+                # Mock discover_tools to return tool definition
+                with patch("dietmcp.core.executor.discover_tools") as mock_discover:
+                    from dietmcp.models.tool import ToolDefinition
+                    mock_discover.return_value = [
+                        ToolDefinition(
+                            name="getUser",
+                            description="Get user",
+                            input_schema={},
+                            server_name="github",
+                        )
+                    ]
+
+                    # First call should introspect
+                    result1 = await execute_tool("github", "getUser", {}, config, protocol="graphql")
+                    assert mock_introspect.call_count == 1
+                    assert result1.is_error is False
+
+                    # Second call should use cache (no additional introspection)
+                    result2 = await execute_tool("github", "getUser", {}, config, protocol="graphql")
+                    assert mock_introspect.call_count == 1  # Still 1, not 2
+                    assert result2.is_error is False
+
+    @pytest.mark.asyncio
+    async def test_schema_cache_invalidation(self):
+        """Test that schema cache can be invalidated."""
+        from dietmcp.cache.schema_cache import SchemaCache
+        from datetime import timedelta
+
+        cache = SchemaCache()
+
+        # Put schema in cache
+        test_schema = {"queries": []}
+        cache.put("test_key", test_schema)
+
+        # Verify it's cached
+        assert cache.get("test_key") == test_schema
+
+        # Invalidate
+        cache.invalidate("test_key")
+
+        # Verify it's gone
+        assert cache.get("test_key") is None
+

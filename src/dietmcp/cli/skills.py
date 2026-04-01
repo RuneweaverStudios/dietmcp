@@ -23,6 +23,13 @@ from dietmcp.security.masking import collect_secret_values, mask_secrets
 @config_option
 @refresh_option
 @click.option("--all", "all_servers", is_flag=True, help="Generate skills for all servers.")
+@click.option(
+    "--format",
+    "format_type",
+    type=click.Choice(["compact", "ultra"], case_sensitive=False),
+    default="compact",
+    help="Output format: compact (29 tokens/tool) or ultra (13-15 tokens/tool).",
+)
 @handle_errors
 @async_command
 async def skills_cmd(
@@ -30,13 +37,18 @@ async def skills_cmd(
     config_path: Path | None,
     refresh: bool,
     all_servers: bool,
+    format_type: str,
 ) -> None:
     """Generate compact skill summaries for LLM context.
 
     Produces a lightweight description of available tools that uses
     far fewer tokens than full JSON schemas.
+
+    Default format (compact): ~29 tokens/tool
+    Ultra format: ~13-15 tokens/tool (best for LLM context)
     """
     config = load_config(config_path)
+    ultra_compact = format_type == "ultra"
 
     if all_servers:
         names = list_server_names(config)
@@ -50,7 +62,9 @@ async def skills_cmd(
 
     async def _gen(name: str) -> tuple[str, str | None, str | None]:
         try:
-            summary = await generate_skills(name, config, force_refresh=refresh)
+            summary = await generate_skills(
+                name, config, force_refresh=refresh, ultra_compact=ultra_compact
+            )
             return (name, summary.render(), None)
         except Exception as exc:
             secrets = collect_secret_values(dict(os.environ))

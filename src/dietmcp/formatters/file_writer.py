@@ -7,6 +7,13 @@ from pathlib import Path
 
 from dietmcp.models.response import TunedResponse
 
+# Security: Define allowed base directories for file writes
+# Prevents path traversal attacks by restricting write locations
+_ALLOWED_BASE_DIRS = [
+    Path(tempfile.gettempdir()),  # Temp directory
+    Path.cwd(),  # Current working directory
+]
+
 
 def write_response(
     response: TunedResponse,
@@ -48,7 +55,18 @@ def write_response(
 
 
 def _write_file(path: str, content: str) -> None:
-    target = Path(path)
+    target = Path(path).resolve()
+
+    # Security: Validate path is within allowed directories
+    # Prevents path traversal attacks (e.g., ../../../etc/passwd)
+    if not any(
+        str(target).startswith(str(d.resolve()))
+        for d in _ALLOWED_BASE_DIRS
+    ):
+        raise ValueError(
+            f"Path traversal denied: {path} is outside allowed directories"
+        )
+
     target.parent.mkdir(parents=True, exist_ok=True)
     target.write_text(content, encoding="utf-8")
 

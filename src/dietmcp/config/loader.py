@@ -117,8 +117,43 @@ def get_server_config(
 
 
 def list_server_names(config: DietMcpConfig) -> list[str]:
-    """Return sorted list of configured server names."""
-    return sorted(config.mcpServers.keys())
+    """Return sorted list of all configured server names across all protocols."""
+    all_servers = set(config.mcpServers.keys())
+    all_servers.update(config.openapiServers.keys())
+    all_servers.update(config.graphqlServers.keys())
+    return sorted(all_servers)
+
+
+def detect_protocol(server_name: str, config: DietMcpConfig) -> str:
+    """Auto-detect protocol from server name.
+
+    Args:
+        server_name: Name of the server to look up.
+        config: Full application configuration.
+
+    Returns:
+        Protocol name: "mcp", "openapi", or "graphql".
+
+    Raises:
+        ConfigError: If server name is not found in any protocol.
+    """
+    if server_name in config.mcpServers:
+        return "mcp"
+    elif server_name in config.openapiServers:
+        return "openapi"
+    elif server_name in config.graphqlServers:
+        return "graphql"
+    else:
+        available = list_server_names(config)
+        if available:
+            raise ConfigError(
+                f"Server '{server_name}' not found. Available: {', '.join(available)}"
+            )
+        else:
+            raise ConfigError(
+                f"Server '{server_name}' not found. No servers configured.\n"
+                f"Run 'dietmcp config init' to get started."
+            )
 
 
 def create_default_config(path: Path | None = None) -> Path:
@@ -139,6 +174,19 @@ def create_default_config(path: Path | None = None) -> Path:
                 "command": "npx",
                 "args": ["-y", "@modelcontextprotocol/server-github"],
                 "env": {"GITHUB_PERSONAL_ACCESS_TOKEN": "${GITHUB_PERSONAL_ACCESS_TOKEN}"},
+            },
+        },
+        "openapiServers": {
+            "petstore": {
+                "url": "https://petstore3.swagger.io/api/v3/openapi.json",
+                "auth": {"header": "X-API-Key: ${PETSTORE_API_KEY}"},
+                "baseUrl": "https://petstore3.swagger.io/api/v3",
+            },
+        },
+        "graphqlServers": {
+            "github": {
+                "url": "https://api.github.com/graphql",
+                "auth": {"header": "Authorization: Bearer ${GITHUB_TOKEN}"},
             },
         },
         "defaults": {

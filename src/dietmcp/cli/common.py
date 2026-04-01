@@ -62,7 +62,7 @@ config_option = click.option(
 format_option = click.option(
     "--output-format",
     "output_format",
-    type=click.Choice(["summary", "minified", "csv"]),
+    type=click.Choice(["summary", "minified", "csv", "toon"]),
     default=None,
     help="Output format (default: from config or 'summary').",
 )

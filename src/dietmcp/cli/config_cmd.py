@@ -28,6 +28,8 @@ def config_show(config_path: Path | None) -> None:
 
     # Collect all env values that look like secrets and mask them
     secret_values = set()
+
+    # MCP servers
     for server in raw.get("mcpServers", {}).values():
         for value in server.get("env", {}).values():
             if not value.startswith("${"):
@@ -35,6 +37,20 @@ def config_show(config_path: Path | None) -> None:
         for value in server.get("headers", {}).values():
             if not value.startswith("${") and not value.startswith("Bearer ${"):
                 secret_values.add(value)
+
+    # OpenAPI servers
+    for server in raw.get("openapiServers", {}).values():
+        auth = server.get("auth", {})
+        header = auth.get("header", "")
+        if header and not header.startswith("${") and not header.startswith("Bearer ${"):
+            secret_values.add(header)
+
+    # GraphQL servers
+    for server in raw.get("graphqlServers", {}).values():
+        auth = server.get("auth", {})
+        header = auth.get("header", "")
+        if header and not header.startswith("${") and not header.startswith("Bearer ${"):
+            secret_values.add(header)
 
     output = json.dumps(raw, indent=2)
     output = mask_secrets(output, frozenset(secret_values))

@@ -13,6 +13,7 @@ from dietmcp.formatters.file_writer import write_response
 from dietmcp.formatters.minified_formatter import MinifiedFormatter
 from dietmcp.formatters.registry import get_formatter, list_formatters
 from dietmcp.formatters.summary_formatter import SummaryFormatter
+from dietmcp.formatters.toon_formatter import ToonFormatter
 from dietmcp.models.response import TunedResponse
 from dietmcp.models.tool import ToolResult
 
@@ -145,6 +146,10 @@ class TestFormatterRegistry:
         fmt = get_formatter("csv")
         assert isinstance(fmt, CsvFormatter)
 
+    def test_get_toon(self):
+        fmt = get_formatter("toon")
+        assert isinstance(fmt, ToonFormatter)
+
     def test_unknown_raises(self):
         with pytest.raises(ValueError, match="Unknown format"):
             get_formatter("nonexistent")
@@ -154,6 +159,7 @@ class TestFormatterRegistry:
         assert "summary" in names
         assert "minified" in names
         assert "csv" in names
+        assert "toon" in names
 
 
 class TestFileWriter:

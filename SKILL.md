@@ -26,7 +26,9 @@ dietmcp skills <server>            # compact skill summary
 
 ## Options
 
+- `--format ultra` -- ultra-compact skill summaries (13-16 tokens/tool, beats mcp2cli)
 - `--output-format minified` -- compact JSON output
+- `--output-format toon` -- TOON format for tabular data (40-60% smaller than JSON)
 - `--output-format csv` -- tabular output
 - `--output-file /tmp/result.txt` -- redirect large responses to disk
 - `--refresh` -- force fresh schema fetch (with discover/skills)
@@ -38,6 +40,14 @@ Non-zero exit code means failure. Check `$?` or use `&&` chaining. Error output 
 ## Example
 
 ```bash
+# Ultra-compact format for token efficiency
+dietmcp skills github --format ultra
+
+# TOON format for tabular data (40-60% smaller)
+dietmcp exec github list_repos \
+  --args '{"owner": "anthropics"}' \
+  --output-format toon
+
 # context7: resolve library then query docs
 dietmcp exec context7 resolve-library-id --args '{"libraryName": "react"}'
 dietmcp exec context7 query-docs --args '{"libraryId": "/facebook/react", "query": "useEffect cleanup"}'

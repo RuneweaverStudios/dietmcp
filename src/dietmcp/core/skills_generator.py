@@ -40,8 +40,10 @@ async def generate_skills(
     config: DietMcpConfig,
     force_refresh: bool = False,
     cache: ToolCache | None = None,
+    ultra_compact: bool = False,
+    protocol: str | None = None,
 ) -> SkillSummary:
-    """Generate a compact skill summary for an MCP server's tools.
+    """Generate a compact skill summary for an MCP, OpenAPI, or GraphQL server's tools.
 
     Fetches tool definitions (from cache or live), groups them by category
     using heuristic keyword matching, and compresses each tool into a
@@ -52,20 +54,26 @@ async def generate_skills(
         config: Full application configuration.
         force_refresh: Bypass cache if True.
         cache: Optional cache instance.
+        ultra_compact: If True, use ultra-compact format (13-15 tokens/tool).
+        protocol: Explicit protocol ("mcp", "openapi", "graphql"). If None,
+                 auto-detects from server name in config.
 
     Returns:
         SkillSummary ready for rendering.
     """
-    tools = await discover_tools(server_name, config, force_refresh=force_refresh, cache=cache)
+    tools = await discover_tools(server_name, config, force_refresh=force_refresh, cache=cache, protocol=protocol)
     grouped = _categorize_tools(tools)
+
+    # Description length: 40 chars for ultra-compact, 80 for standard
+    desc_limit = 40 if ultra_compact else 80
 
     categories = tuple(
         SkillCategory(
             name=cat_name,
             tools=tuple(
                 SkillEntry(
-                    signature=tool.compact_signature(),
-                    description=_truncate(tool.description, 80),
+                    signature=tool.compact_signature(ultra_compact=ultra_compact),
+                    description=_truncate(tool.description, desc_limit),
                 )
                 for tool in cat_tools
             ),
@@ -80,6 +88,7 @@ async def generate_skills(
         tool_count=len(tools),
         categories=categories,
         exec_syntax=exec_syntax,
+        ultra_compact=ultra_compact,
     )
 
 
