@@ -5,7 +5,7 @@ from __future__ import annotations
 import os
 from typing import Any
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 from dietmcp.config.schema import AuthConfig
 
@@ -60,11 +60,24 @@ class OpenAPIEndpoint(BaseModel):
     error_schema: dict[str, Any] | None = None  # 4xx/5xx response schema
     tags: list[str] = []
     security: list[dict[str, list[str]]] = []  # Auth requirements
-    # Grouped parameters by location
+    # Grouped parameters by location (auto-computed from parameters)
     path_params: list[OpenAPIParameter] = []
     query_params: list[OpenAPIParameter] = []
     header_params: list[OpenAPIParameter] = []
     cookie_params: list[OpenAPIParameter] = []
+
+    @model_validator(mode='after')
+    def compute_grouped_parameters(self):
+        """Auto-compute grouped parameters from parameters list if not explicitly set."""
+        # Only compute if grouped params are empty and parameters is not
+        if not self.path_params and not self.query_params and not self.header_params and not self.cookie_params:
+            if self.parameters:
+                # Compute grouped params from parameters list
+                object.__setattr__(self, 'path_params', [p for p in self.parameters if p.in_ == "path"])
+                object.__setattr__(self, 'query_params', [p for p in self.parameters if p.in_ == "query"])
+                object.__setattr__(self, 'header_params', [p for p in self.parameters if p.in_ == "header"])
+                object.__setattr__(self, 'cookie_params', [p for p in self.parameters if p.in_ == "cookie"])
+        return self
 
 
 class OpenAPISpec(BaseModel):

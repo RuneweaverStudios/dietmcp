@@ -19,6 +19,7 @@ from dietmcp.config.schema import OpenAPIServerConfig
 from dietmcp.formatters.toon_formatter import ToonFormatter
 from dietmcp.models.openapi import OpenAPIEndpoint, OpenAPISpec
 from dietmcp.models.tool import ToolResult
+from dietmcp.openapi.content_types import ContentType, parse_response_body, serialize_request_body
 from dietmcp.security.rate_limiter import RateLimiter
 from dietmcp.security.url_validator import validate_url
 
@@ -81,12 +82,19 @@ class OpenAPIExecutor:
         query_params = self._build_query_params(endpoint, arguments)
         request_body = self._build_request_body(endpoint, arguments)
 
-        # Check request body size
+        # Determine request content type
+        request_content_type = "application/json"
+        if endpoint.request_body and "content" in endpoint.request_body:
+            request_content_type = next(iter(endpoint.request_body["content"].keys()), "application/json")
+
+        # Check request body size and set Content-Type
         if request_body is not None:
-            headers["Content-Type"] = "application/json"
-            if len(request_body) > MAX_RESPONSE_SIZE:
+            headers["Content-Type"] = request_content_type
+            # Get size for validation
+            body_size = len(request_body) if isinstance(request_body, (str, bytes)) else len(str(request_body))
+            if body_size > MAX_RESPONSE_SIZE:
                 raise OpenAPIExecutorError(
-                    f"Request body too large: {len(request_body)} bytes "
+                    f"Request body too large: {body_size} bytes "
                     f"(max: {MAX_RESPONSE_SIZE})"
                 )
 
@@ -95,11 +103,14 @@ class OpenAPIExecutor:
             await self.rate_limiter.acquire()
 
             # Execute HTTP request
+            # Convert request_body to bytes if needed for httpx
+            body_content = request_body if isinstance(request_body, (bytes, str, type(None))) else json.dumps(request_body)
+
             response = await self.client.request(
                 method=endpoint.method.lower(),
                 url=url,
                 params=query_params if query_params else None,
-                content=request_body,
+                content=body_content,
                 headers=headers,
                 follow_redirects=True,
             )
@@ -244,14 +255,14 @@ class OpenAPIExecutor:
 
     def _build_headers(
         self,
-        endpoint: OpenAPIEndpoint,
-        arguments: dict[str, Any],
+        endpoint: OpenAPIEndpoint | None = None,
+        arguments: dict[str, Any] | None = None,
     ) -> dict[str, str]:
         """Build headers with authentication and parameter-based headers.
 
         Args:
-            endpoint: OpenAPI endpoint
-            arguments: Request arguments
+            endpoint: OpenAPI endpoint (optional)
+            arguments: Request arguments (optional)
 
         Returns:
             Dictionary of headers
@@ -270,10 +281,11 @@ class OpenAPIExecutor:
                 header_value = parts[1].strip()
                 headers[header_name] = header_value
 
-        # Add header parameters from spec
-        for param in endpoint.header_params:
-            if param.name in arguments:
-                headers[param.name] = str(arguments[param.name])
+        # Add header parameters from spec (if endpoint provided)
+        if endpoint and arguments:
+            for param in endpoint.header_params:
+                if param.name in arguments:
+                    headers[param.name] = str(arguments[param.name])
 
         return headers
 
@@ -310,15 +322,15 @@ class OpenAPIExecutor:
         self,
         endpoint: OpenAPIEndpoint,
         arguments: dict[str, Any],
-    ) -> str | None:
-        """Build request body JSON from arguments.
+    ) -> str | bytes | dict[str, Any] | None:
+        """Build request body using content type serialization.
 
         Args:
             endpoint: OpenAPI endpoint
             arguments: Request arguments
 
         Returns:
-            JSON string or None if no body needed
+            Serialized body (string, bytes, or dict for form-data)
         """
         # Only POST, PUT, PATCH typically have bodies
         if endpoint.method.upper() not in ["POST", "PUT", "PATCH"]:
@@ -330,10 +342,16 @@ class OpenAPIExecutor:
         # Extract body arguments (non-path, non-query, non-header, non-cookie params)
         body_args = {}
 
-        # Get schema from request body
-        content = endpoint.request_body.get("content", {})
-        json_schema = content.get("application/json", {}).get("schema", {})
-        properties = json_schema.get("properties", {})
+        # Get content type from request body
+        request_content = endpoint.request_body.get("content", {})
+        content_type_str = next(iter(request_content.keys()), "application/json")
+
+        # Convert to ContentType enum
+        try:
+            content_type = ContentType(content_type_str)
+        except ValueError:
+            # Default to JSON for unsupported types
+            content_type = ContentType.JSON
 
         # Arguments that aren't path, query, header, or cookie params go in body
         param_names = {
@@ -358,7 +376,8 @@ class OpenAPIExecutor:
         if not body_args:
             return None
 
-        return json.dumps(body_args)
+        # Use content_types module for serialization
+        return serialize_request_body(body_args, content_type)
 
     def _parse_response(self, response: httpx.Response) -> ToolResult:
         """Parse HTTP response into ToolResult with TOON encoding.
@@ -372,14 +391,20 @@ class OpenAPIExecutor:
         status_code = response.status_code
         is_error = status_code >= 400
 
-        # Try to parse JSON response
-        try:
-            response_data = response.json()
-        except (json.JSONDecodeError, ValueError):
-            # Not JSON - use text
-            response_data = {"text": response.text}
+        # Get response content type
+        response_content_type = response.headers.get("content-type", "application/json")
 
-        # Build content blocks (use default JSON formatting)
+        # Use content_types module to parse response body
+        try:
+            response_data = parse_response_body(response.text, response_content_type, is_error)
+        except Exception:
+            # Fallback to simple parsing
+            try:
+                response_data = response.json()
+            except (json.JSONDecodeError, ValueError):
+                response_data = {"text": response.text}
+
+        # Build content blocks
         if isinstance(response_data, dict):
             text = json.dumps(response_data)
         else:

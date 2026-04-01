@@ -17,6 +17,7 @@ import yaml
 
 from dietmcp.models.openapi import OpenAPIEndpoint, OpenAPIParameter, OpenAPISpec, SecurityScheme
 from dietmcp.openapi.ref_resolver import RefResolver
+from dietmcp.openapi.response_schema import extract_response_schema
 from dietmcp.security.url_validator import validate_url
 
 
@@ -366,27 +367,36 @@ class OpenAPIParser:
                 # Find 2xx success response
                 for status, response in responses.items():
                     if status.startswith("2"):
-                        if "$ref" in response:
-                            # Resolve reference
-                            ref = response["$ref"]
-                            if ref.startswith("#/components/schemas/"):
-                                schema_name = ref.split("/")[-1]
-                                success_schema = {"$ref": schema_name}
-                        elif "content" in response:
-                            # Extract from content
-                            for content_type, content in response["content"].items():
-                                if "schema" in content:
-                                    success_schema = content["schema"]
-                                    break
+                        # Use response_schema module for better extraction
+                        try:
+                            from dietmcp.openapi.response_schema import ResponseSchema
+                            schema_info = extract_response_schema(response, "application/json")
+                            success_schema = schema_info.schema
+                        except Exception:
+                            # Fallback to manual extraction
+                            if "$ref" in response:
+                                ref = response["$ref"]
+                                if ref.startswith("#/components/schemas/"):
+                                    schema_name = ref.split("/")[-1]
+                                    success_schema = {"$ref": schema_name}
+                            elif "content" in response:
+                                for content_type, content in response["content"].items():
+                                    if "schema" in content:
+                                        success_schema = content["schema"]
+                                        break
                         break
                     elif status.startswith(("4", "5")):
                         # Extract error schema (first one found)
                         if error_schema is None:
-                            if "content" in response:
-                                for content_type, content in response["content"].items():
-                                    if "schema" in content:
-                                        error_schema = content["schema"]
-                                        break
+                            try:
+                                schema_info = extract_response_schema(response, "application/json")
+                                error_schema = schema_info.schema
+                            except Exception:
+                                if "content" in response:
+                                    for content_type, content in response["content"].items():
+                                        if "schema" in content:
+                                            error_schema = content["schema"]
+                                            break
 
                 endpoint = OpenAPIEndpoint(
                     path=path,
